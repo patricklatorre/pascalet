@@ -46,10 +46,11 @@ public class VariableTable {
 
     // Get all var details (packaged as VariableModel)
     public VariableModel get(String variableName) {
-        return new VariableModel(
-                variableName,
-                valueOf(variableName),
-                typeOf(variableName)
-        );
+        return !contains(variableName) ? null :
+                new VariableModel(
+                    variableName,
+                    valueOf(variableName),
+                    typeOf(variableName)
+                );
     }
 }

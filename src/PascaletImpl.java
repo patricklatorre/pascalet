@@ -1,12 +1,11 @@
-import gen.PascaletBaseVisitor;
-import gen.PascaletParser;
+import gen.*;
 import symbolTable.VariableModel;
 import symbolTable.VariableTable;
 import errorManager.Error;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
+import java.util.Stack;
 
 
 /* NOTES */
@@ -15,8 +14,59 @@ import java.util.Scanner;
 
 public class PascaletImpl extends PascaletBaseVisitor<Double> {
 
+    // symbol table of global variables
+    VariableTable globals = new VariableTable();
+
     // "stack" of scopes for all variables
-    List<VariableTable> scopes = new ArrayList<>();
+    Stack<VariableTable> scopes = new Stack<>();
+
+    // becomes true once detected that global declaration block is finished
+    boolean lockGlobalDeclarations = false;
+
+    public final String UNINITIALIZED_VAR = "$UNINITIALIZED_VAR";
+
+
+
+
+
+
+
+    // Initialization of program
+    @Override
+    public Double visitProgram(PascaletParser.ProgramContext ctx) {
+        // some initializers here
+        addSymbolTable();
+
+        return super.visitProgram(ctx);
+    }
+
+
+
+
+
+
+
+
+
+
+    // just for locking global declarations
+    @Override
+    public Double visitProcedureAndFunctionDeclarationPart(PascaletParser.ProcedureAndFunctionDeclarationPartContext ctx) {
+        lockGlobalDeclarations = true;
+        return super.visitProcedureAndFunctionDeclarationPart(ctx);
+    }
+
+    // just for locking global declarations
+    @Override
+    public Double visitCompoundStatement(PascaletParser.CompoundStatementContext ctx) {
+        lockGlobalDeclarations = true;
+        return super.visitCompoundStatement(ctx);
+    }
+
+
+
+
+
 
 
 
@@ -24,7 +74,7 @@ public class PascaletImpl extends PascaletBaseVisitor<Double> {
 
     // Evaluate function call
     @Override
-    public Double visitProcedureStatement(gen.PascaletParser.ProcedureStatementContext ctx) {
+    public Double visitProcedureStatement(PascaletParser.ProcedureStatementContext ctx) {
         // If built in function, execute
         String procedureName = ctx.identifier().IDENT().toString();
 
@@ -41,18 +91,57 @@ public class PascaletImpl extends PascaletBaseVisitor<Double> {
         return super.visitProcedureStatement(ctx);
     }
 
-    // Evaluate expression
 
 
 
 
 
 
-    /*
-    *
-    *   HELPER METHODS
-    *
-    * */
+
+
+
+
+
+    // For JUST declaring variables: NAME & TYPE
+    // var x: Integer;
+    @Override
+    public Double visitVariableDeclaration(PascaletParser.VariableDeclarationContext ctx) {
+        // Get list of variables declared
+        List<PascaletParser.IdentifierContext> varNames = ctx.identifierList().identifier();
+
+        // Get declared type
+        // TODO: NOT SURE IF WORKING
+        String varType = ctx.type().simpleType().typeIdentifier().getText();
+
+        // iterate through variable names (for multiple declaration)
+        for (int i = 0; i < varNames.size(); i++) {
+            String varName = varNames.get(i).getText();
+
+            if (queryVariableScope(varName) != null) {
+                Error.varAlreadyDeclared(varName, ctx.getStart().getLine());
+                System.exit(1);
+            }
+
+            if (lockGlobalDeclarations) {
+                addVariable(varName, UNINITIALIZED_VAR, varType);
+            } else {
+                addGlobalVariable(varName, UNINITIALIZED_VAR, varType);
+            }
+        }
+
+
+        return super.visitVariableDeclaration(ctx);
+    }
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -77,13 +166,13 @@ public class PascaletImpl extends PascaletBaseVisitor<Double> {
 
     // readln() logic
     private void readln(gen.PascaletParser.ProcedureStatementContext ctx) {
-        // always add a new scope for function call parameters
-        scopes.add(new VariableTable());
+        // always add a new symbol table for function call
+        addSymbolTable();
 
         Scanner in = new Scanner(System.in);
 
         // DEBUG (store sample var)
-        // addNewVar("somevar", "69", "int");
+        // addVariable("somevar", "69", "int");
 
         // iterate through the parameters and scan per parameter
         List<PascaletParser.ActualParameterContext> parameters = ctx.parameterList().actualParameter();
@@ -91,19 +180,21 @@ public class PascaletImpl extends PascaletBaseVisitor<Double> {
             String parameterName = parameters.get(i).getText();
 
             // get last table where var was mentioned
-            VariableTable paramScopeOrigin = queryLastVariableInstance(parameterName);
+            VariableTable scopeOfVar = queryVariableScope(parameterName);
 
             // if null, variable not mentioned before
-            if (paramScopeOrigin == null) {
+            if (scopeOfVar == null) {
                 Error.cantResolveIden(parameterName, ctx.getStart().getLine());
                 System.exit(1);
-                // TODO: should also quit program
             }
 
-            // print parameters to console
-            VariableModel queriedVar = paramScopeOrigin.get(parameterName);
-            paramScopeOrigin.add(parameterName, in.nextLine(), queriedVar.getType());
+            // scan parameters to console
+            VariableModel queriedVar = scopeOfVar.get(parameterName);
+            scopeOfVar.add(parameterName, in.nextLine(), queriedVar.getType());
         }
+
+        // always pop last table when done with scope
+        popSymbolTable();
     }
 
 
@@ -115,13 +206,15 @@ public class PascaletImpl extends PascaletBaseVisitor<Double> {
 
 
 
-    // Get the last table where a certain var is mentioned
-    private VariableTable queryLastVariableInstance(String variableName) {
-        for (int i = scopes.size()-1; i >= 0; i--) {
-            if (scopes.get(i).contains(variableName))
-                return scopes.get(i);
-        }
-        // return null if var not found
+    // Get the last table of last scope where a certain var is mentioned
+    private VariableTable queryVariableScope(String variableName) {
+        // check current symbol table if variable is declared
+        if (currentSymTable().contains(variableName)) return currentSymTable();
+
+        // check global symbol table if variable is declared
+        if (globals.contains(variableName)) return globals;
+
+        // null if variable not found
         return null;
     }
 
@@ -129,6 +222,29 @@ public class PascaletImpl extends PascaletBaseVisitor<Double> {
 
 
 
+    // return current symbol table
+    private VariableTable currentSymTable() {
+        return scopes.peek();
+    }
+
+
+
+
+
+    // add a new symbol table to stack
+    private void addSymbolTable() {
+        scopes.push(new VariableTable());
+    }
+
+
+
+
+
+
+    // remove last symbole table
+    private void popSymbolTable() {
+        scopes.pop();
+    }
 
 
 
@@ -137,7 +253,17 @@ public class PascaletImpl extends PascaletBaseVisitor<Double> {
 
 
     // add a new variable in the TOP symbol table
-    private void addNewVar(String name, String value, String type) {
-        scopes.get(scopes.size()-1).add(name, value, type);
+    private void addVariable(String name, String value, String type) {
+        currentSymTable().add(name, value, type);
+    }
+
+
+
+
+
+
+    // add a global variable
+    private void addGlobalVariable(String name, String value, String type) {
+        globals.add(name, value, type);
     }
 }
