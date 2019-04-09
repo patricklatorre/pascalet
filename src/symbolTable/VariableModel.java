@@ -1,3 +1,5 @@
+package symbolTable;
+
 public class VariableModel {
     private String name;
     private String value;

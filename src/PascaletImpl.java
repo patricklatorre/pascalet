@@ -1,37 +1,89 @@
-import com.sun.org.apache.xpath.internal.operations.Variable;
 import gen.PascaletBaseVisitor;
 import gen.PascaletParser;
+import symbolTable.VariableModel;
+import symbolTable.VariableTable;
+import errorManager.Error;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
 
+
+/* NOTES */
+/* TODO: to get line of token ctx.getStart().getLine() */
+
+
 public class PascaletImpl extends PascaletBaseVisitor<Double> {
 
+    // "stack" of scopes for all variables
     List<VariableTable> scopes = new ArrayList<>();
 
+
+
+
+
+    // Evaluate function call
     @Override
     public Double visitProcedureStatement(gen.PascaletParser.ProcedureStatementContext ctx) {
-        // get the param name
-        System.out.print(ctx.identifier().IDENT().toString() + " := ");
-        // get the param value
-        System.out.println(ctx.parameterList().getText());
-
-        // If built in function, do it
-
+        // If built in function, execute
         String procedureName = ctx.identifier().IDENT().toString();
-        if (procedureName.equalsIgnoreCase("readln")) {
 
+        // readln()
+        if (procedureName.equalsIgnoreCase("readln")) {
+            readln(ctx);
+        }
+
+        // writeln()
+        else if (procedureName.equalsIgnoreCase("writeln")) {
+            writeln(ctx);
         }
 
         return super.visitProcedureStatement(ctx);
     }
 
-    // helper methods
+    // Evaluate expression
+
+
+
+
+
+
+    /*
+    *
+    *   HELPER METHODS
+    *
+    * */
+
+
+
+
+
+
+
+
+    // writeln() logic
+    private void writeln(PascaletParser.ProcedureStatementContext ctx) {
+        // TODO: do visit expression before this
+    }
+
+
+
+
+
+
+
+
+
+
+    // readln() logic
     private void readln(gen.PascaletParser.ProcedureStatementContext ctx) {
+        // always add a new scope for function call parameters
         scopes.add(new VariableTable());
 
         Scanner in = new Scanner(System.in);
+
+        // DEBUG (store sample var)
+        // addNewVar("somevar", "69", "int");
 
         // iterate through the parameters and scan per parameter
         List<PascaletParser.ActualParameterContext> parameters = ctx.parameterList().actualParameter();
@@ -39,28 +91,53 @@ public class PascaletImpl extends PascaletBaseVisitor<Double> {
             String parameterName = parameters.get(i).getText();
 
             // get last table where var was mentioned
-            VariableTable lastVarTable = queryLastVariableInstance(parameterName);
+            VariableTable paramScopeOrigin = queryLastVariableInstance(parameterName);
 
-            // TODO: handle this error
             // if null, variable not mentioned before
-            if (lastVarTable == null) {
-                // handle error here
-                System.out.println("Variable " + parameterName + " does not exist.");
+            if (paramScopeOrigin == null) {
+                Error.cantResolveIden(parameterName, ctx.getStart().getLine());
+                System.exit(1);
+                // TODO: should also quit program
             }
 
-            // scan on console per parameter
-            VariableModel variableModel = lastVarTable.get(parameterName);
-            lastVarTable.add(parameterName, in.nextLine(), variableModel.getType());
+            // print parameters to console
+            VariableModel queriedVar = paramScopeOrigin.get(parameterName);
+            paramScopeOrigin.add(parameterName, in.nextLine(), queriedVar.getType());
         }
     }
 
-    /* Get the last table where a certain var is mentioned */
+
+
+
+
+
+
+
+
+
+    // Get the last table where a certain var is mentioned
     private VariableTable queryLastVariableInstance(String variableName) {
         for (int i = scopes.size()-1; i >= 0; i--) {
             if (scopes.get(i).contains(variableName))
                 return scopes.get(i);
         }
+        // return null if var not found
         return null;
     }
 
+
+
+
+
+
+
+
+
+
+
+
+    // add a new variable in the TOP symbol table
+    private void addNewVar(String name, String value, String type) {
+        scopes.get(scopes.size()-1).add(name, value, type);
+    }
 }

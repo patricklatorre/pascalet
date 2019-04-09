@@ -1,12 +1,9 @@
 package gen;// Generated from C:/Users/ptrck/Github/pascalet/src\Pascalet.g4 by ANTLR 4.7.2
 import org.antlr.v4.runtime.Lexer;
 import org.antlr.v4.runtime.CharStream;
-import org.antlr.v4.runtime.Token;
-import org.antlr.v4.runtime.TokenStream;
 import org.antlr.v4.runtime.*;
 import org.antlr.v4.runtime.atn.*;
 import org.antlr.v4.runtime.dfa.DFA;
-import org.antlr.v4.runtime.misc.*;
 
 @SuppressWarnings({"all", "warnings", "unchecked", "unused", "cast"})
 public class PascaletLexer extends Lexer {
@@ -112,7 +109,7 @@ public class PascaletLexer extends Lexer {
 	}
 
 	@Override
-	public String getGrammarFileName() { return "Pascalet.g4"; }
+	public String getGrammarFileName() { return "grammars/Pascalet.g4"; }
 
 	@Override
 	public String[] getRuleNames() { return ruleNames; }
