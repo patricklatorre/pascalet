@@ -1,3 +1,4 @@
+import debug.Debug;
 import gen.*;
 import symbolTable.VariableModel;
 import symbolTable.VariableTable;
@@ -9,7 +10,6 @@ import java.util.Stack;
 
 
 /* NOTES */
-/* TODO: to get line of token ctx.getStart().getLine() */
 
 
 public class PascaletImpl extends PascaletBaseVisitor<Double> {
@@ -35,6 +35,7 @@ public class PascaletImpl extends PascaletBaseVisitor<Double> {
     @Override
     public Double visitProgram(PascaletParser.ProgramContext ctx) {
         // some initializers here
+        Debug.run = true;
         addSymbolTable();
 
         return super.visitProgram(ctx);
@@ -128,10 +129,47 @@ public class PascaletImpl extends PascaletBaseVisitor<Double> {
                 addGlobalVariable(varName, UNINITIALIZED_VAR, varType);
             }
         }
-
-
         return super.visitVariableDeclaration(ctx);
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    // Assigning a value to a variable
+    @Override
+    public Double visitAssignmentStatement(PascaletParser.AssignmentStatementContext ctx) {
+        String varName = ctx.variable().identifier().get(0).getText();
+
+        // if var doesn't exist
+        VariableTable scopeOrigin = queryVariableScope(varName);
+        if (scopeOrigin == null) {
+            Error.cantResolveIden(varName, ctx.getStart().getLine());
+            System.exit(1);
+        }
+
+        // TODO: only stores numbers and strings (still needs expressions)
+        String value = ctx.expression().simpleExpression().term().signedFactor().factor().getText();
+
+        scopeOrigin.assign(varName, value);
+
+        return super.visitAssignmentStatement(ctx);
+    }
+
+
+
+
 
 
 
@@ -244,6 +282,7 @@ public class PascaletImpl extends PascaletBaseVisitor<Double> {
     // remove last symbole table
     private void popSymbolTable() {
         scopes.pop();
+        Debug.note("PopSymTable", "");
     }
 
 

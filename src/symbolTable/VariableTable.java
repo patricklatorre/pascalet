@@ -1,5 +1,7 @@
 package symbolTable;
 
+import debug.Debug;
+
 import java.util.HashMap;
 
 public class VariableTable {
@@ -31,7 +33,10 @@ public class VariableTable {
     // Add a new variable
     public void add(String name, String value, String type) {
         values.put(name, value);
-        types.put(name, value);
+        types.put(name, type);
+
+        // Debug
+        Debug.store("VariableStore", name, value, type);
     }
 
     // Get value of var
@@ -44,7 +49,7 @@ public class VariableTable {
         return types.get(variableName);
     }
 
-    // Get all var details (packaged as VariableModel)
+    // Get all var details (packaged as VariableModel) return null if doesn't exist
     public VariableModel get(String variableName) {
         return !contains(variableName) ? null :
                 new VariableModel(
@@ -52,5 +57,13 @@ public class VariableTable {
                     valueOf(variableName),
                     typeOf(variableName)
                 );
+    }
+
+    // overwrite variable entry in hashmap
+    public void assign(String name, String value) {
+        values.put(name, value);
+
+        // Debug
+        Debug.store("VariableAssign", name, value, typeOf(name));
     }
 }

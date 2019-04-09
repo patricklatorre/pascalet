@@ -32,5 +32,4 @@ begin {Input}
         writeln('Fail');
     end;
     {endif}
-
 end. {Input}
