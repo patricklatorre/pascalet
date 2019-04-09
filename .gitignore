@@ -26,3 +26,7 @@ hs_err_pid*
 .idea/*
 pascalet.iml
 out/*
+out/production/pascalet/Pascalet.g4
+out/production/pascalet/needed.md
+out/production/pascalet/Input2.pas
+out/production/pascalet/Arithmetic.g4
