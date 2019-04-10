@@ -1,29 +1,23 @@
 program Input;
 
-var actualMark: Integer;
-var possibleMark: Integer;
-var percentageMark: Integer;
-var testVariable : Boolean;
+var someint : integer;
+var somebool : boolean;
+var printme : boolean;
 
-begin {Input}
-    testVariable := false;
+begin
+    someint := 3 * 2;
+    someint := 3 / 2;
+    someint := 3 mod 2;
+    somebool := 3 * 2 = 6;
+    somebool := 3 * 2 = 7;
+    somebool := (3 * 2 = 6) and (3 * 2 = 7);
 
-    writeln('Pass or fail checker');
-    writeln('Please type your score: ');
-    readln(actualMark);
+    printme := false;
 
-    writeln('Please type the total number of items in the exam: ');
-    readln(possibleMark);
+    { 'wow' }
+    { someint }
+    { 1 }
+    if (printme)
+    WriteLn('wow', someint, not somebool);
 
-    percentageMark := (actualMark / possibleMark) * 100;
-
-    if (percentageMark >= 60) then
-    begin
-        writeln('Pass');
-    end
-    else
-    begin
-        writeln('Fail');
-    end;
-    {endif}
-end. {Input}
+end.

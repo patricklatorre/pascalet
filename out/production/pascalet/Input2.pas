@@ -15,6 +15,14 @@ begin
     { 'wow' }
     { someint }
     { 1 }
-    WriteLn('wow', someint, somebool);
+    WriteLn('wow', -(-2) + 5, somebool);
 
+    if (someint < 5) then
+        begin
+            WriteLn('statement1');
+            WriteLn('statement2');
+            WriteLn('statement3');
+            WriteLn('statement4');
+            WriteLn('statement5');
+        end
 end.

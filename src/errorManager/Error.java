@@ -38,4 +38,10 @@ public class Error {
         System.out.println(preset + "Division by zero");
     }
 
+    public static void invalidCondition(String receivedType, ParserRuleContext ctx) {
+        String preset = "ERROR @ " +ctx.getStart().getLine()+ "  -----  ";
+        System.out.println(preset + "If statement expects boolean but receives " + receivedType);
+    }
+
+
 }

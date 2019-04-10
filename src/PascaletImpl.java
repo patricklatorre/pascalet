@@ -201,9 +201,36 @@ public class PascaletImpl extends PascaletBaseVisitor<String> {
 
 
 
+    @Override
+    public String visitIfStatement(PascaletParser.IfStatementContext ctx) {
+        // evaluate expression right away
+        String evaluatedExpression = visit(ctx.expression());
+
+        // check if expression yields a boolean
+        if (!isBoolean(evaluatedExpression)) {
+            Error.invalidCondition(inferType(evaluatedExpression), ctx);
+            System.exit(1);
+        }
+
+        boolean expressionResult = Boolean.parseBoolean(evaluatedExpression);
+
+        if (expressionResult) {
+            visit(ctx.statement(0));
+            return "";
+        } else {
+            visit(ctx.statement(1));
+            return "";
+        }
+    }
+
     // evaluate expressions wrapped in ()
     @Override
     public String visitFactor(PascaletParser.FactorContext ctx) {
+        // check if contains not
+        if (ctx.NOT() != null) {
+            return ""+ !Boolean.parseBoolean(visit(ctx.factor()));
+        }
+
         // check if wrapped in ()
         if (ctx.LPAREN() != null && ctx.RPAREN() != null) {
             return visit(ctx.expression());
@@ -220,6 +247,15 @@ public class PascaletImpl extends PascaletBaseVisitor<String> {
 
 
 
+
+
+
+
+    @Override
+    public String visitForStatement(PascaletParser.ForStatementContext ctx) {
+        return super.visitForStatement(ctx);
+    }
+    
 
 
 
@@ -315,13 +351,44 @@ public class PascaletImpl extends PascaletBaseVisitor<String> {
         return ctx.getText();
     }
 
+    // return
     @Override
     public String visitUnsignedConstant(PascaletParser.UnsignedConstantContext ctx) {
         return ctx.getText();
     }
 
+    // return as signed integer if integer, if not continue as is
+    @Override
+    public String visitSignedFactor(PascaletParser.SignedFactorContext ctx) {
+        // evaluate the factor
+        String evaluatedFactor = visit(ctx.factor());
 
+        // if no sign treat as positive
+        if (ctx.PLUS() == null && ctx.MINUS() == null) {
+            return evaluatedFactor;
+        }
 
+        // if signed as plus, treat as unsigned
+        else if (ctx.PLUS() != null) {
+            // throw error if not integer
+            if (!isInteger(evaluatedFactor)) {
+                Error.invalidOperandType(evaluatedFactor, ctx);
+                System.exit(1);
+            }
+            return evaluatedFactor;
+        }
+
+        // negate if signed otherwise
+        else {
+            // throw error if not integer
+            if (!isInteger(evaluatedFactor)) {
+                Error.invalidOperandType(evaluatedFactor, ctx);
+                System.exit(1);
+            }
+            int factorAsInt = Integer.parseInt(evaluatedFactor);
+            return ""+ (factorAsInt * -1);
+        }
+    }
 
 
 
@@ -575,15 +642,6 @@ public class PascaletImpl extends PascaletBaseVisitor<String> {
         }
         return super.visitTerm(ctx);
     }
-
-
-
-
-
-
-
-
-
 
 
 
