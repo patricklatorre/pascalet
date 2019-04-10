@@ -3,17 +3,11 @@ program Input;
 var actualMark: Integer;
 var possibleMark: Integer;
 var percentageMark: Integer;
-
-function f1(x:string):string;
-var someVar1: Integer;
-var someVar2: String;
-var somevar3: Integer;
-begin
-    WriteLn(x, someVar1, someVar2, somevar3);
-end;
-
+var testVariable : Boolean;
 
 begin {Input}
+    testVariable := false;
+
     writeln('Pass or fail checker');
     writeln('Please type your score: ');
     readln(actualMark);
