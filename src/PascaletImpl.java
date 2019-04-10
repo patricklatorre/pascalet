@@ -123,6 +123,7 @@ public class PascaletImpl extends PascaletBaseVisitor<Double> {
                 System.exit(1);
             }
 
+            // store to global/local symbol table
             if (lockGlobalDeclarations) {
                 addVariable(varName, UNINITIALIZED_VAR, varType);
             } else {
@@ -153,8 +154,8 @@ public class PascaletImpl extends PascaletBaseVisitor<Double> {
         String varName = ctx.variable().identifier().get(0).getText();
 
         // if var doesn't exist
-        VariableTable scopeOrigin = queryVariableScope(varName);
-        if (scopeOrigin == null) {
+        VariableTable scopeOfVar = queryVariableScope(varName);
+        if (scopeOfVar == null) {
             Error.cantResolveIden(varName, ctx.getStart().getLine());
             System.exit(1);
         }
@@ -162,7 +163,7 @@ public class PascaletImpl extends PascaletBaseVisitor<Double> {
         // TODO: only stores numbers and strings (still needs expressions)
         String value = ctx.expression().simpleExpression().term().signedFactor().factor().getText();
 
-        scopeOrigin.assign(varName, value);
+        scopeOfVar.assign(varName, value);
 
         return super.visitAssignmentStatement(ctx);
     }
@@ -209,8 +210,7 @@ public class PascaletImpl extends PascaletBaseVisitor<Double> {
 
         Scanner in = new Scanner(System.in);
 
-        // DEBUG (store sample var)
-        // addVariable("somevar", "69", "int");
+        if (Debug.run) addVariable("magicVar", "voila", "string");
 
         // iterate through the parameters and scan per parameter
         List<PascaletParser.ActualParameterContext> parameters = ctx.parameterList().actualParameter();
