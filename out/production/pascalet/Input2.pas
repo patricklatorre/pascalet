@@ -10,4 +10,11 @@ begin
     somebool := 3 * 2 = 6;
     somebool := 3 * 2 = 7;
     somebool := (3 * 2 = 6) and (3 * 2 = 7);
+
+
+    { 'wow' }
+    { someint }
+    { 1 }
+    WriteLn('wow', someint, somebool);
+
 end.

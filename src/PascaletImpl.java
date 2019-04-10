@@ -4,6 +4,7 @@ import symbolTable.VariableModel;
 import symbolTable.VariableTable;
 import errorManager.Error;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
 import java.util.Stack;
@@ -168,7 +169,6 @@ public class PascaletImpl extends PascaletBaseVisitor<String> {
             System.exit(1);
         }
 
-        // TODO: remove once sure that vars will never contain null
         String preValue = visit(ctx.expression());
         String value = (preValue == null) ? "NIL" : preValue;
 
@@ -589,7 +589,10 @@ public class PascaletImpl extends PascaletBaseVisitor<String> {
 
     // writeln() logic
     private void writeln(PascaletParser.ProcedureStatementContext ctx) {
-        // TODO: do visit expression before this
+        List<PascaletParser.ActualParameterContext> parameters = ctx.parameterList().actualParameter();
+        for (PascaletParser.ActualParameterContext param : parameters) {
+            System.out.println(visit(param));
+        }
     }
 
 
