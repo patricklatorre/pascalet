@@ -8,6 +8,7 @@ function increment(number:integer) : integer;
         increment := number + 1;
     end;
 
+
 procedure sendLetter(name:string; msg:string; closing:string);
     var spacing: integer;
     var spacectr: integer;
@@ -35,6 +36,9 @@ procedure sendLetter(name:string; msg:string; closing:string);
             WriteLn('');
         end;
     end;
+
+
+
 
 begin
     someint := 3 * 2;
@@ -64,5 +68,9 @@ begin
                   );
 
     increment(1);
+
+    Write(increment);
+
+    writeln(increment);
 
 end.

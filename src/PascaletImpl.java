@@ -34,7 +34,7 @@ public class PascaletImpl extends PascaletBaseVisitor<String> {
     @Override
     public String visitProgram(PascaletParser.ProgramContext ctx) {
         // some initializers here
-        Debug.run = false;
+        Debug.run = true;
         addSymbolTable();
 
         return super.visitProgram(ctx);
@@ -734,7 +734,7 @@ public class PascaletImpl extends PascaletBaseVisitor<String> {
         // always add a new symbol table for function call
         Scanner in = new Scanner(System.in);
 
-        if (Debug.run) addVariable("magicVar", "voila", "string");
+        //if (Debug.run) addVariable("magicVar", "voila", "string");
 
         // iterate through the parameters and scan per parameter
         List<PascaletParser.ActualParameterContext> parameters = ctx.parameterList().actualParameter();

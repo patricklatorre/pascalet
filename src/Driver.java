@@ -15,7 +15,7 @@ public class Driver {
         CharStream input = null;
 
         // File Input
-        String filename = "src\\Input2.pas";
+        String filename = "src\\Input.pas";
         File file = new File(filename);
         FileInputStream fis = null;
 
