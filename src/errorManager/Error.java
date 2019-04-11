@@ -43,5 +43,18 @@ public class Error {
         System.out.println(preset + "If statement expects boolean but receives " + receivedType);
     }
 
+    public static void procedureDNE(String procedureName, ParserRuleContext ctx) {
+        String preset = "ERROR @ " +ctx.getStart().getLine()+ "  -----  ";
+        System.out.println(preset + "Procedure \'" +procedureName+ "\' does not exist");
+    }
 
+    public static void tooManyArgs(String procedureName, ParserRuleContext ctx) {
+        String preset = "ERROR @ " +ctx.getStart().getLine()+ "  -----  ";
+        System.out.println(preset + "Too many args");
+    }
+
+    public static void tooFewArgs(String procedureName, ParserRuleContext ctx) {
+        String preset = "ERROR @ " +ctx.getStart().getLine()+ "  -----  ";
+        System.out.println(preset + "Too few args");
+    }
 }

@@ -1,8 +1,7 @@
-program Input;
+program Input2;
 
 var someint : integer;
 var somebool : boolean;
-var printme : boolean;
 
 begin
     someint := 3 * 2;
@@ -12,12 +11,18 @@ begin
     somebool := 3 * 2 = 7;
     somebool := (3 * 2 = 6) and (3 * 2 = 7);
 
-    printme := false;
 
     { 'wow' }
     { someint }
     { 1 }
-    if (printme)
-    WriteLn('wow', someint, not somebool);
+    WriteLn('wow', -2 + 5, somebool);
 
+    if (someint < 5) then
+    begin
+        WriteLn('statement1');
+        WriteLn('statement2');
+        WriteLn('statement3');
+        WriteLn('statement4');
+        WriteLn('statement5');
+    end
 end.

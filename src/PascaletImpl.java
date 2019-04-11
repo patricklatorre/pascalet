@@ -1,13 +1,11 @@
 import debug.Debug;
 import gen.*;
+import org.antlr.v4.runtime.ParserRuleContext;
 import symbolTable.VariableModel;
 import symbolTable.VariableTable;
 import errorManager.Error;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Scanner;
-import java.util.Stack;
+import java.util.*;
 
 
 /* NOTES */
@@ -21,6 +19,11 @@ public class PascaletImpl extends PascaletBaseVisitor<String> {
     // "stack" of scopes for all variables
     Stack<VariableTable> scopes = new Stack<>();
 
+    // table of function identifiers and their contents
+    Hashtable<String, ParserRuleContext> functions = new Hashtable<>();
+    Hashtable<String, ParserRuleContext> procedures = new Hashtable<>();
+
+
     // becomes true once detected that global declaration block is finished
     boolean lockGlobalDeclarations = false;
 
@@ -31,7 +34,7 @@ public class PascaletImpl extends PascaletBaseVisitor<String> {
     @Override
     public String visitProgram(PascaletParser.ProgramContext ctx) {
         // some initializers here
-        Debug.run = true;
+        Debug.run = false;
         addSymbolTable();
 
         return super.visitProgram(ctx);
@@ -53,33 +56,26 @@ public class PascaletImpl extends PascaletBaseVisitor<String> {
     }
 
 
+    // upon encountering function
+    @Override
+    public String visitFunctionDeclaration(PascaletParser.FunctionDeclarationContext ctx) {
+        declareFunction(ctx);
+        return "";
+    }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    @Override
+    public String visitProcedureDeclaration(PascaletParser.ProcedureDeclarationContext ctx) {
+        declareProcedure(ctx);
+        return "";
+    }
 
 
     // Evaluate function call
     @Override
     public String visitProcedureStatement(PascaletParser.ProcedureStatementContext ctx) {
         // If built in function, execute
-        String procedureName = ctx.identifier().IDENT().toString();
+        String procedureName = visit(ctx.identifier()).toLowerCase();
 
         // readln()
         if (procedureName.equalsIgnoreCase("readln")) {
@@ -91,6 +87,40 @@ public class PascaletImpl extends PascaletBaseVisitor<String> {
             writeln(ctx);
         }
 
+        // write()
+        else if (procedureName.equalsIgnoreCase("write")) {
+            write(ctx);
+        }
+
+        // if custom made
+        else {
+            // evaluate all parameters before passing anything
+            List<String> args = new ArrayList<>();
+            for (PascaletParser.ActualParameterContext arg : ctx.parameterList().actualParameter()) {
+                args.add(visit(arg));
+            }
+
+            // execute function from table
+            if (functions.containsKey(procedureName)) {
+                addSymbolTable();
+                VariableModel returnedVal = executeFunction(((PascaletParser.FunctionDeclarationContext) functions.get(procedureName)), args);
+                popSymbolTable();
+                addVariable(returnedVal.getName(), returnedVal.getValue(), returnedVal.getType());
+            }
+            // execute procedure from table
+            else if (procedures.containsKey(procedureName)) {
+                addSymbolTable();
+                executeProcedure((PascaletParser.ProcedureDeclarationContext) procedures.get(procedureName), args);
+                popSymbolTable();
+                return super.visitProcedureStatement(ctx);
+            }
+            // throw error when procedure does not exist
+            else {
+                Error.procedureDNE(procedureName, ctx);
+                System.exit(1);
+            }
+        }
+
         return super.visitProcedureStatement(ctx);
     }
 
@@ -98,18 +128,62 @@ public class PascaletImpl extends PascaletBaseVisitor<String> {
 
 
 
+    private void executeProcedure(PascaletParser.ProcedureDeclarationContext ctx, List<String> passedValues) {
+        // store all parameters into local symbol table
+        for (int i = 0; i < ctx.formalParameterList().formalParameterSection().size(); i++) {
+            // drill down useless level
+            PascaletParser.ParameterGroupContext paramGroup = ctx.formalParameterList().formalParameterSection(i).parameterGroup();
 
+            // multi declared type
+            currentSymTable().add(
+                    "" + paramGroup.identifierList().identifier(0).getText(),
+                    passedValues.get(i),
+                    paramGroup.typeIdentifier().getText()
+            );
+        }
 
+        // add local variables to symbol table
+        if (ctx.block().variableDeclarationPart() != null) {
+            for (int declare = 0; declare < ctx.block().variableDeclarationPart().size(); declare++) {
+                visitVariableDeclarationPart(ctx.block().variableDeclarationPart(declare));
+            }
+        }
 
+        // execute procedure body
+        visit(ctx.block().compoundStatement().statements());
+    }
 
+    private VariableModel executeFunction(PascaletParser.FunctionDeclarationContext ctx, List<String> passedValues) {
 
+        // add return variable to symbol table
+        addVariable(ctx.identifier().getText(), UNINITIALIZED_VAR, ctx.resultType().getText());
 
+        // store all parameters into local symbol table
+        for (int i = 0; i < ctx.formalParameterList().formalParameterSection().size(); i++) {
+            // drill down useless level
+            PascaletParser.ParameterGroupContext paramGroup = ctx.formalParameterList().formalParameterSection(i).parameterGroup();
 
+            // multi declared type
+            currentSymTable().add(
+                    "" + paramGroup.identifierList().identifier(0).getText(),
+                    passedValues.get(i),
+                    paramGroup.typeIdentifier().getText()
+            );
+        }
 
+        // declare variables
+        if (ctx.block().variableDeclarationPart() != null) {
+            for (int declare = 0; declare < ctx.block().variableDeclarationPart().size(); declare++) {
+                visitVariableDeclarationPart(ctx.block().variableDeclarationPart(declare));
+            }
+        }
 
+        // execute function body
+        visit(ctx.block().compoundStatement().statements());
 
-
-
+        // return the result
+        return currentSymTable().get(ctx.identifier().getText());
+    }
 
 
     // For JUST declaring variables: NAME & TYPE
@@ -126,7 +200,7 @@ public class PascaletImpl extends PascaletBaseVisitor<String> {
         for (int i = 0; i < varNames.size(); i++) {
             String varName = varNames.get(i).getText();
 
-            if (queryVariableScope(varName) != null) {
+            if (queryVariableScope(varName) != null || functions.containsKey(varName) || procedures.containsKey(varName)) {
                 Error.varAlreadyDeclared(varName, ctx);
                 System.exit(1);
             }
@@ -140,21 +214,6 @@ public class PascaletImpl extends PascaletBaseVisitor<String> {
         }
         return super.visitVariableDeclaration(ctx);
     }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
     // Assigning a value to a variable
@@ -189,18 +248,6 @@ public class PascaletImpl extends PascaletBaseVisitor<String> {
     }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
     @Override
     public String visitIfStatement(PascaletParser.IfStatementContext ctx) {
         // evaluate expression right away
@@ -228,47 +275,79 @@ public class PascaletImpl extends PascaletBaseVisitor<String> {
     public String visitFactor(PascaletParser.FactorContext ctx) {
         // check if contains not
         if (ctx.NOT() != null) {
-            return ""+ !Boolean.parseBoolean(visit(ctx.factor()));
+            return "" + !Boolean.parseBoolean(visit(ctx.factor()));
         }
 
         // check if wrapped in ()
         if (ctx.LPAREN() != null && ctx.RPAREN() != null) {
             return visit(ctx.expression());
         }
+
         return super.visitFactor(ctx);
     }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
     @Override
     public String visitForStatement(PascaletParser.ForStatementContext ctx) {
-        return super.visitForStatement(ctx);
+        String iteratorVar = visit(ctx.identifier());
+        Debug.note("iteratorvarname", iteratorVar);
+
+        VariableTable iteratorScope = queryVariableScope(iteratorVar);
+
+        // do all necessary checking before proceeding
+        if (iteratorScope == null) {
+            Error.cantResolveIden(iteratorVar, ctx);
+            System.exit(1);
+        }
+        if (!iteratorScope.typeOf(iteratorVar).equalsIgnoreCase("integer")) {
+            Error.invalidAssignment("integer", iteratorScope.typeOf(iteratorVar), ctx);
+            System.exit(1);
+        }
+
+        // get first bound and check if integer
+        String sbound1 = visit(ctx.forList().initialValue());
+        if (!isInteger(sbound1)) {
+            Error.invalidAssignment("integer", iteratorScope.typeOf(sbound1), ctx);
+            System.exit(1);
+        }
+        int bound1 = Integer.parseInt(sbound1);
+
+        // get second bound and check if integer
+        String sbound2 = visit(ctx.forList().finalValue());
+        if (!isInteger(sbound2)) {
+            Error.invalidAssignment("integer", iteratorScope.typeOf(sbound1), ctx);
+            System.exit(1);
+        }
+        int bound2 = Integer.parseInt(sbound2);
+
+        // assign bound1 to iteratorvar
+        iteratorScope.assign(iteratorVar, "" + bound1);
+
+        // incremental loop
+        if (ctx.forList().TO() != null) {
+            while (Integer.parseInt(iteratorScope.get(iteratorVar).getValue()) < bound2) {
+                // do statements
+                visit(ctx.statement());
+
+                // iterate iteratorvar
+                iteratorScope.assign(iteratorVar,
+                        "" + (Integer.parseInt(iteratorScope.get(iteratorVar).getValue()) + 1));
+            }
+        }
+        // decremental loop
+        else {
+            while (Integer.parseInt(iteratorScope.get(iteratorVar).getValue()) >= bound2) {
+                // do statements
+                visit(ctx.statement());
+
+                // iterate iteratorvar
+                iteratorScope.assign(iteratorVar,
+                        "" + (Integer.parseInt(iteratorScope.get(iteratorVar).getValue()) - 1));
+            }
+        }
+
+        return "";
     }
-    
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
     // VISIT() logic --  used for getting identifier string
@@ -282,23 +361,6 @@ public class PascaletImpl extends PascaletBaseVisitor<String> {
     public String visitType(PascaletParser.TypeContext ctx) {
         return ctx.simpleType().typeIdentifier().getText();
     }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
     // return VALUE of variable everytime variable is mentioned in code
@@ -319,19 +381,11 @@ public class PascaletImpl extends PascaletBaseVisitor<String> {
     }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+    @Override
+    public String visitConstant(PascaletParser.ConstantContext ctx) {
+        Debug.note("valueofliteral", ctx.getText());
+        return super.visitConstant(ctx);
+    }
 
     // return UNSIGNED NUMBERS as a string
     @Override
@@ -342,7 +396,8 @@ public class PascaletImpl extends PascaletBaseVisitor<String> {
     // return STRINGS as a string
     @Override
     public String visitString(PascaletParser.StringContext ctx) {
-        return ctx.getText();
+        Debug.note("valueofString", ctx.getText());
+        return ctx.getText().replaceAll("\'", "");
     }
 
     // return BOOLEANS as a string
@@ -350,6 +405,7 @@ public class PascaletImpl extends PascaletBaseVisitor<String> {
     public String visitBool(PascaletParser.BoolContext ctx) {
         return ctx.getText();
     }
+
 
     // return
     @Override
@@ -365,6 +421,9 @@ public class PascaletImpl extends PascaletBaseVisitor<String> {
 
         // if no sign treat as positive
         if (ctx.PLUS() == null && ctx.MINUS() == null) {
+            if (inferType(evaluatedFactor).equalsIgnoreCase("string")) {
+                return evaluatedFactor.replaceAll("\'", "");
+            }
             return evaluatedFactor;
         }
 
@@ -386,18 +445,9 @@ public class PascaletImpl extends PascaletBaseVisitor<String> {
                 System.exit(1);
             }
             int factorAsInt = Integer.parseInt(evaluatedFactor);
-            return ""+ (factorAsInt * -1);
+            return "" + (factorAsInt * -1);
         }
     }
-
-
-
-
-
-
-
-
-
 
 
     // relational operations
@@ -430,61 +480,73 @@ public class PascaletImpl extends PascaletBaseVisitor<String> {
                 // GREATER THAN
                 case ">":
                     if (areBothIntegers(left, right)) {
-                        return ""+ (Integer.parseInt(left) > Integer.parseInt(right));
+                        return "" + (Integer.parseInt(left) > Integer.parseInt(right));
                     } else if (booleanExists(left, right)) {
                         break;
                     } else {
-                        return ""+ (left.length() > right.length());
+                        return "" + (left.compareTo(right) > 0);
                     }
 
-                // LESS THAN
+                    // LESS THAN
                 case "<":
                     if (areBothIntegers(left, right)) {
-                        return ""+ (Integer.parseInt(left) < Integer.parseInt(right));
+                        return "" + (Integer.parseInt(left) < Integer.parseInt(right));
                     } else if (booleanExists(left, right)) {
                         break;
                     } else {
-                        return ""+ (left.length() < right.length());
+                        return "" + (left.compareTo(right) < 0);
                     }
 
-                // GREATER THAN OR EQUAL
+                    // GREATER THAN OR EQUAL
                 case ">=":
                     if (areBothIntegers(left, right)) {
-                        return ""+ (Integer.parseInt(left) >= Integer.parseInt(right));
+                        return "" + (Integer.parseInt(left) >= Integer.parseInt(right));
                     } else if (booleanExists(left, right)) {
                         break;
                     } else {
-                        return ""+ (left.length() >= right.length())    ;
+                        return "" + (left.compareTo(right) >= 0);
                     }
 
-                // LESS THAN OR EQUAL
+                    // LESS THAN OR EQUAL
                 case "<=":
                     if (areBothIntegers(left, right)) {
-                        return ""+ (Integer.parseInt(left) <= Integer.parseInt(right));
+                        return "" + (Integer.parseInt(left) <= Integer.parseInt(right));
                     } else if (booleanExists(left, right)) {
                         break;
                     } else {
-                        return ""+ (left.length() <= right.length());
+                        return "" + (left.compareTo(right) <= 0);
                     }
 
-                // EQUAL
+                    // EQUAL
                 case "=":
                     if (areBothIntegers(left, right)) {
-                        return ""+ (Integer.parseInt(left) == Integer.parseInt(right));
-                    } else if (booleanExists(left, right)) {
-                        return ""+ (Boolean.parseBoolean(left) == Boolean.parseBoolean(right));
+                        return "" + (Integer.parseInt(left) == Integer.parseInt(right));
+                    } else if (isBoolean(left)) {
+                        if (isBoolean(right)) {
+                            return "" + (Boolean.parseBoolean(left) == Boolean.parseBoolean(right));
+                        } else {
+                            Error.invalidOperator("=", ctx);
+                            System.exit(1);
+                        }
+                    } else if (isBoolean(right)) {
+                        if (isBoolean(left)) {
+                            return "" + (Boolean.parseBoolean(left) == Boolean.parseBoolean(right));
+                        } else {
+                            Error.invalidOperator("=", ctx);
+                            System.exit(1);
+                        }
                     } else {
-                        return ""+ (left.length() == right.length());
+                        return "" + (left.equals(right));
                     }
 
-                // NOT EQUAL
+                    // NOT EQUAL
                 case "<>":
                     if (areBothIntegers(left, right)) {
-                        return ""+ (Integer.parseInt(left) != Integer.parseInt(right));
+                        return "" + (Integer.parseInt(left) != Integer.parseInt(right));
                     } else if (booleanExists(left, right)) {
-                        return ""+ (Boolean.parseBoolean(left) != Boolean.parseBoolean(right));
+                        return "" + (Boolean.parseBoolean(left) != Boolean.parseBoolean(right));
                     } else {
-                        return ""+ (left.length() != right.length());
+                        return "" + (!left.equals(right));
                     }
             }
 
@@ -526,29 +588,29 @@ public class PascaletImpl extends PascaletBaseVisitor<String> {
                 // PLUS
                 case "+":
                     if (areBothIntegers(left, right)) {
-                        return ""+ (Integer.parseInt(left) + Integer.parseInt(right));
+                        return "" + (Integer.parseInt(left) + Integer.parseInt(right));
                     } else if (booleanExists(left, right)) {
                         break;
                     } else {
                         return left + right;
                     }
 
-                // MINUS
+                    // MINUS
                 case "-":
                     if (areBothIntegers(left, right)) {
-                        return ""+ (Integer.parseInt(left) - Integer.parseInt(right));
+                        return "" + (Integer.parseInt(left) - Integer.parseInt(right));
                     } else if (booleanExists(left, right)) {
                         break;
                     } else {
                         break;
                     }
 
-                // OR
+                    // OR
                 case "or":
                     if (areBothIntegers(left, right)) {
                         break;
                     } else if (areAllBooleans(left, right)) {
-                        return ""+ (Boolean.parseBoolean(left) || Boolean.parseBoolean(right));
+                        return "" + (Boolean.parseBoolean(left) || Boolean.parseBoolean(right));
                     } else {
                         break;
                     }
@@ -591,14 +653,14 @@ public class PascaletImpl extends PascaletBaseVisitor<String> {
                 // MULTIPLY
                 case "*":
                     if (areBothIntegers(left, right)) {
-                        return ""+ (Integer.parseInt(left) * Integer.parseInt(right));
+                        return "" + (Integer.parseInt(left) * Integer.parseInt(right));
                     } else if (booleanExists(left, right)) {
                         break;
                     } else {
                         break;
                     }
 
-                // DIVIDE
+                    // DIVIDE
                 case "/":
                     if (areBothIntegers(left, right)) {
                         int dividend = Integer.parseInt(left);
@@ -610,29 +672,29 @@ public class PascaletImpl extends PascaletBaseVisitor<String> {
                             System.exit(1);
                         }
 
-                        return ""+ (dividend/divisor);
+                        return "" + (dividend / divisor);
                     } else if (booleanExists(left, right)) {
                         break;
                     } else {
                         break;
                     }
 
-                // MODULO
+                    // MODULO
                 case "mod":
                     if (areBothIntegers(left, right)) {
-                        return ""+ (Integer.parseInt(left) % Integer.parseInt(right));
+                        return "" + (Integer.parseInt(left) % Integer.parseInt(right));
                     } else if (areAllBooleans(left, right)) {
                         break;
                     } else {
                         break;
                     }
 
-                // AND
+                    // AND
                 case "and":
                     if (areBothIntegers(left, right)) {
                         break;
                     } else if (areAllBooleans(left, right)) {
-                        return ""+ (Boolean.parseBoolean(left) && Boolean.parseBoolean(right));
+                        return "" + (Boolean.parseBoolean(left) && Boolean.parseBoolean(right));
                     } else {
                         break;
                     }
@@ -644,29 +706,27 @@ public class PascaletImpl extends PascaletBaseVisitor<String> {
     }
 
 
+    // write() logic
+    private void write(PascaletParser.ProcedureStatementContext ctx) {
+        List<PascaletParser.ActualParameterContext> parameters = ctx.parameterList().actualParameter();
+        String printable = "";
+        for (PascaletParser.ActualParameterContext param : parameters) {
+            printable += visit(param);
+        }
+        System.out.print(printable);
+
+    }
 
     // writeln() logic
     private void writeln(PascaletParser.ProcedureStatementContext ctx) {
         List<PascaletParser.ActualParameterContext> parameters = ctx.parameterList().actualParameter();
+        String printable = "";
         for (PascaletParser.ActualParameterContext param : parameters) {
-            System.out.println(visit(param));
+            printable += visit(param);
         }
+        System.out.println(printable);
+
     }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
     // readln() logic
@@ -697,17 +757,7 @@ public class PascaletImpl extends PascaletBaseVisitor<String> {
     }
 
 
-
-
-
-
-
-
-
-
     /////////////////////////////////// HELPER METHODS ////////////////////////////////////////
-
-
 
 
     // Get the last table of last scope where a certain var is mentioned
@@ -721,7 +771,6 @@ public class PascaletImpl extends PascaletBaseVisitor<String> {
         // null if variable not found
         return null;
     }
-
 
 
     // return current symbol table
@@ -765,21 +814,21 @@ public class PascaletImpl extends PascaletBaseVisitor<String> {
     }
 
     // checks if list of strings has a boolean
-    private boolean booleanExists(String ... args) {
+    private boolean booleanExists(String... args) {
         for (String arg : args)
             if (isBoolean(arg)) return true;
         return false;
     }
 
     // checks if list of strings are all booleans
-    private boolean areAllBooleans(String ... args) {
+    private boolean areAllBooleans(String... args) {
         for (String arg : args)
             if (!isBoolean(arg)) return false;
         return true;
     }
 
     // checks if list of strings are both integers
-    private boolean areBothIntegers(String ... args) {
+    private boolean areBothIntegers(String... args) {
         for (String arg : args)
             if (!isInteger(arg)) return false;
         return true;
@@ -795,4 +844,39 @@ public class PascaletImpl extends PascaletBaseVisitor<String> {
             return "string";
     }
 
+    // process of declaring a function
+    private void declareFunction(PascaletParser.FunctionDeclarationContext ctx) {
+        // get important information
+        String name = ctx.identifier().getText().toLowerCase();
+
+        // check if identifier already used
+        if ((queryVariableScope(name) != null) || functions.containsKey(name)) {
+            Error.varAlreadyDeclared(name, ctx);
+            System.exit(1);
+        }
+
+        // store the function by its identifier
+        functions.put(name, ctx);
+    }
+
+
+
+
+
+
+
+    // for declaring procedures
+    private void declareProcedure(PascaletParser.ProcedureDeclarationContext ctx) {
+        // get important information
+        String name = ctx.identifier().getText().toLowerCase();
+
+        // check if identifier already used
+        if ((queryVariableScope(name) != null) || functions.containsKey(name) || procedures.containsKey(name)) {
+            Error.varAlreadyDeclared(name, ctx);
+            System.exit(1);
+        }
+
+        // store the function by its identifier
+        procedures.put(name, ctx);
+    }
 }

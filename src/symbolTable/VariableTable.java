@@ -65,4 +65,12 @@ public class VariableTable {
         // Debug
         Debug.store("Assignment", name.toLowerCase(), value, typeOf(name.toLowerCase()));
     }
+
+    public HashMap<String, String> getValues() {
+        return values;
+    }
+
+    public HashMap<String, String> getTypes() {
+        return types;
+    }
 }
