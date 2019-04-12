@@ -1,23 +1,29 @@
-program Input2;
+program S18_Team5_1;
 
+{integer global vars}
+{i is used as an iterator}
 var someint, i : integer;
+
+{boolea global vars}
 var somebool : boolean;
 
+{increment a given parameter and return the value}
 function increment(number:integer) : integer;
     begin
         increment := number + 1;
     end;
 
 
+{takes 3 strings and prints them in a letter structure}
 procedure sendLetter(name:string; msg:string; closing:string);
     var spacing: integer;
-    var spacectr: integer;
 
     begin
+        { margin width }
         spacing := 4;
 
         { top margin }
-        for spacectr := 0 to spacing do
+        for i := 0 to spacing do
             begin
                 WriteLn('');
             end;
@@ -31,7 +37,7 @@ procedure sendLetter(name:string; msg:string; closing:string);
 
 
         { bottom margin }
-        for spacectr := 0 to spacing do
+        for i := 0 to spacing do
         begin
             WriteLn('');
         end;
@@ -41,16 +47,15 @@ procedure sendLetter(name:string; msg:string; closing:string);
 
 
 begin
-    someint := 3 * 2;
-    someint := 3 / 2;
-    someint := 3 mod 2;
-    somebool := 3 * 2 = 6;
-    somebool := 3 * 2 = 7;
-    somebool := (3 * 2 = 6) and (3 * 2 = 7);
+    { test some expressions }
+    someint := 3 * 2;                           {should 6}
+    someint := 3 / 2;                           {1}
+    someint := 3 mod 2;                         {1}
+    somebool := 3 * 2 = 6;                      {true}
+    somebool := 3 * 2 = 7;                      {false}
+    somebool := (3 * 2 = 6) and (3 * 2 = 7);    {false}
 
-    { 'wow' }
-    { someint }
-    { 1 }
+
     WriteLn('wow' + ' ', (-2 + 5) + ' ', true = someint = someint);
 
     if (someint < 5) then
@@ -69,8 +74,10 @@ begin
 
     increment(1);
 
-    Write(increment);
-
     writeln(increment);
+
+    { "spacing" defined in sendletter }
+    { should throw unresolved identifier error }
+    writeln(spacing);
 
 end.
